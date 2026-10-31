@@ -10,12 +10,19 @@ export interface ActionResponse {
 }
 
 /**
- * Institutional Passwordless Sign-In.
- * Strictly preserves existing database roles and defaults new AIU users to 'student'.
+ * Local Development Sign-In helper.
+ * Strictly disabled in production so production enforces genuine Google OAuth.
  */
 export async function instantInstitutionalSignInAction(
     formData: FormData
 ): Promise<ActionResponse> {
+    if (process.env.NODE_ENV !== 'development') {
+        return {
+            success: false,
+            message: 'Please sign in using the Continue with AIU Google Account button.',
+        };
+    }
+
     const email = String(formData.get('email') ?? '')
         .trim()
         .toLowerCase();

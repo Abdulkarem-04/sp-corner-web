@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
-import { createSupabaseServerClient, createSupabaseAdminClient } from '@/lib/supabase/server';
+import {
+    createSupabaseServerClient,
+    createSupabaseAdminClient,
+} from '@/lib/supabase/server';
 
 export async function GET(request: Request) {
     const { searchParams, origin } = new URL(request.url);
@@ -13,7 +16,18 @@ export async function GET(request: Request) {
         if (!error && data.user) {
             const email = (data.user.email ?? '').toLowerCase();
 
-            // Ensure a row exists in public.app_users even if the DB trigger had any delay
+            // Strictly enforce institutional AIU domains
+            const isInstitutionalEmail =
+                email.endsWith('@student.aiu.edu.my') || email.endsWith('@aiu.edu.my');
+
+            if (!isInstitutionalEmail) {
+                await supabase.auth.signOut();
+                const adminDb = createSupabaseAdminClient();
+                await adminDb.auth.admin.deleteUser(data.user.id);
+                return NextResponse.redirect(`${origin}/?authError=restricted_domain`);
+            }
+
+            // Ensure a row exists in public.app_users without overwriting existing role or student_id
             const adminSupabase = createSupabaseAdminClient();
             await adminSupabase
                 .from('app_users')

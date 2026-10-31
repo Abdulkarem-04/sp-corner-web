@@ -55,8 +55,29 @@ export default function AuthHeader({
     } | null>(null);
     const [isPending, startTransition] = useTransition();
 
+    const isLocalDev = process.env.NODE_ENV === 'development';
+
     useEffect(() => {
         if (typeof window === 'undefined') return;
+
+        // Check URL for OAuth domain restriction errors
+        const params = new URLSearchParams(window.location.search);
+        const authError = params.get('authError');
+        if (authError === 'restricted_domain') {
+            setShowAuthModal(true);
+            setStatusMessage({
+                type: 'error',
+                text: 'Access Restricted: Please select your official @student.aiu.edu.my or @aiu.edu.my Google account.',
+            });
+            window.history.replaceState({}, '', window.location.pathname);
+        } else if (authError === 'verification_failed') {
+            setShowAuthModal(true);
+            setStatusMessage({
+                type: 'error',
+                text: 'Google authentication could not be completed. Please try again.',
+            });
+            window.history.replaceState({}, '', window.location.pathname);
+        }
 
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js').catch((err) => {
@@ -106,15 +127,15 @@ export default function AuthHeader({
                 .then((registration) => {
                     registration.showNotification(latest.title, {
                         body: latest.message,
-                        icon: '/icon.svg',
-                        badge: '/icon.svg',
+                        icon: '/icon-192.png',
+                        badge: '/icon-192.png',
                         tag: latest.id,
                     });
                 })
                 .catch(() => {
                     new Notification(latest.title, {
                         body: latest.message,
-                        icon: '/icon.svg',
+                        icon: '/icon-192.png',
                     });
                 });
         }
@@ -133,7 +154,7 @@ export default function AuthHeader({
             navigator.serviceWorker.ready.then((registration) => {
                 registration.showNotification('SP Corner Alerts Enabled', {
                     body: 'You will now receive instant notifications for verified drop-offs and hostel collection sessions.',
-                    icon: '/icon.svg',
+                    icon: '/icon-192.png',
                 });
             });
         }
@@ -165,7 +186,7 @@ export default function AuthHeader({
             options: {
                 redirectTo: `${window.location.origin}/auth/callback`,
                 queryParams: {
-                    hd: 'student.aiu.edu.my',
+                    prompt: 'select_account',
                 },
             },
         });
@@ -243,7 +264,7 @@ export default function AuthHeader({
                                 title="Install SP Corner App"
                             >
                                 <Smartphone className="w-4 h-4 text-emerald-700" />
-                                <span className="hidden sm:inline">Install App</span>
+                                <span>Install</span>
                             </button>
                         )}
 
@@ -432,7 +453,7 @@ export default function AuthHeader({
                 </div>
             )}
 
-            {/* Clean Production Institutional Sign-In Modal */}
+            {/* Institutional Sign-In Modal */}
             {showAuthModal && !currentUser && (
                 <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
                     <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl my-auto">
@@ -458,7 +479,7 @@ export default function AuthHeader({
                             In compliance with Section 4 Data Governance, SP Corner never stores personal
                             passwords. Sign in using your official{' '}
                             <span className="font-semibold">@student.aiu.edu.my</span> or{' '}
-                            <span className="font-semibold">@aiu.edu.my</span> account.
+                            <span className="font-semibold">@aiu.edu.my</span> Google account.
                         </p>
 
                         {statusMessage && (
@@ -481,45 +502,46 @@ export default function AuthHeader({
                         <button
                             type="button"
                             onClick={handleGoogleSignIn}
-                            className="w-full py-2.5 px-4 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer mb-4"
+                            className="w-full py-3 px-4 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs"
                         >
                             <Mail className="w-4 h-4" />
                             <span>Continue with AIU Google Account</span>
                         </button>
 
-                        <div className="relative my-4 flex items-center justify-center">
-                            <div className="border-t border-slate-200 w-full" />
-                            <span className="bg-white px-3 text-[11px] uppercase tracking-wider text-slate-400 shrink-0">
-                Or Direct Institutional Email
-              </span>
-                            <div className="border-t border-slate-200 w-full" />
-                        </div>
+                        {isLocalDev && (
+                            <>
+                                <div className="relative my-4 flex items-center justify-center">
+                                    <div className="border-t border-slate-200 w-full" />
+                                    <span className="bg-white px-3 text-[11px] uppercase tracking-wider text-slate-400 shrink-0">
+                    Local Dev Quick Login Only
+                  </span>
+                                    <div className="border-t border-slate-200 w-full" />
+                                </div>
 
-                        <form onSubmit={handleInstantSignIn} className="space-y-3">
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                                    Institutional Email Address
-                                </label>
-                                <input
-                                    type="email"
-                                    name="email"
-                                    required
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="name@student.aiu.edu.my"
-                                    className="w-full px-3 py-2.5 rounded-lg bg-slate-50 border border-slate-300 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white"
-                                />
-                            </div>
+                                <form onSubmit={handleInstantSignIn} className="space-y-3">
+                                    <div>
+                                        <input
+                                            type="email"
+                                            name="email"
+                                            required
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            placeholder="name@student.aiu.edu.my"
+                                            className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-300 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white"
+                                        />
+                                    </div>
 
-                            <button
-                                type="submit"
-                                disabled={isPending}
-                                className="w-full py-2.5 px-4 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                            >
-                                <span>{isPending ? 'Verifying...' : 'Sign In with AIU Email'}</span>
-                                <ArrowRight className="w-4 h-4" />
-                            </button>
-                        </form>
+                                    <button
+                                        type="submit"
+                                        disabled={isPending}
+                                        className="w-full py-2 px-4 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                                    >
+                                        <span>{isPending ? 'Verifying...' : 'Local Dev Sign In'}</span>
+                                        <ArrowRight className="w-3.5 h-3.5" />
+                                    </button>
+                                </form>
+                            </>
+                        )}
                     </div>
                 </div>
             )}
