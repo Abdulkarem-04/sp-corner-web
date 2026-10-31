@@ -1,69 +1,190 @@
-import Image from "next/image";
+import React, { Suspense } from 'react';
+import { connection } from 'next/server';
+import {
+  createSupabaseServerClient,
+  createSupabaseAdminClient,
+} from '@/lib/supabase/server';
+import AuthHeader from '@/components/AuthHeader';
+import AuthenticatedWorkspace from '@/components/AuthenticatedWorkspace';
+import type {
+  AppUser,
+  MaterialCategory,
+  NotificationItem,
+  PublicCampusStats,
+  PublicLeaderboardEntry,
+  StudentLedger,
+  Submission,
+  SystemSettings,
+} from '@/types/database';
 
-export default function Home() {
+async function DashboardContent() {
+  // Explicitly mark route as request-time dynamic for Next.js 16 Cache Components
+  await connection();
+
+  const supabase = await createSupabaseServerClient();
+  const adminDb = createSupabaseAdminClient();
+
+  const [
+    { data: settingsData },
+    { data: materialsData },
+    { data: campusStatsData },
+    { data: leaderboardData },
+    {
+      data: { user: authUser },
+    },
+  ] = await Promise.all([
+    adminDb.from('system_settings').select('*').eq('id', 1).single(),
+    adminDb
+        .from('material_categories')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true }),
+    supabase.from('public_campus_stats').select('*').single(),
+    supabase.from('public_leaderboard').select('*').limit(50),
+    supabase.auth.getUser(),
+  ]);
+
+  const settings: SystemSettings = settingsData ?? {
+    id: 1,
+    currency_mode: 'POINTS',
+    currency_label: 'Pts',
+    points_per_rm: 100,
+    min_qualifying_kg: 0.5,
+    tier1_target_submissions: 10,
+    tier1_multiplier: 1.5,
+    updated_at: '',
+  };
+
+  const materials: MaterialCategory[] = (materialsData ?? []) as MaterialCategory[];
+  const campusStats: PublicCampusStats = campusStatsData ?? {
+    total_campus_weight_kg: 0,
+    total_campus_co2_kg: 0,
+    active_participants: 0,
+    tier1_achievers: 0,
+  };
+  const leaderboard: PublicLeaderboardEntry[] = (leaderboardData ??
+      []) as PublicLeaderboardEntry[];
+
+  let currentUser: AppUser | null = null;
+  let studentLedger: StudentLedger | null = null;
+  let studentSubmissions: Submission[] = [];
+  let allStudentsForStaff: StudentLedger[] = [];
+  let allSubmissionsForAdmin: Submission[] = [];
+  let notifications: NotificationItem[] = [];
+
+  if (authUser && authUser.email) {
+    const { data: existingAppUser } = await adminDb
+        .from('app_users')
+        .select('*')
+        .eq('id', authUser.id)
+        .maybeSingle();
+
+    if (existingAppUser) {
+      currentUser = existingAppUser as AppUser;
+    } else {
+      const { data: createdAppUser } = await adminDb
+          .from('app_users')
+          .upsert({
+            id: authUser.id,
+            email: authUser.email.toLowerCase(),
+            role: 'student',
+          })
+          .select('*')
+          .single();
+      currentUser = (createdAppUser as AppUser) ?? null;
+    }
+
+    if (currentUser?.student_id) {
+      const [{ data: ledgerRow }, { data: subRows }, { data: notifRows }] =
+          await Promise.all([
+            adminDb
+                .from('students')
+                .select('*')
+                .eq('student_id', currentUser.student_id)
+                .maybeSingle(),
+            adminDb
+                .from('submissions')
+                .select('*')
+                .eq('student_id', currentUser.student_id)
+                .order('created_at', { ascending: false })
+                .limit(30),
+            adminDb
+                .from('notifications')
+                .select('*')
+                .or(`student_id.is.null,student_id.eq.${currentUser.student_id}`)
+                .order('created_at', { ascending: false })
+                .limit(20),
+          ]);
+
+      studentLedger = (ledgerRow as StudentLedger) ?? null;
+      studentSubmissions = (subRows ?? []) as Submission[];
+      notifications = (notifRows ?? []) as NotificationItem[];
+    } else {
+      const { data: broadcastRows } = await adminDb
+          .from('notifications')
+          .select('*')
+          .is('student_id', null)
+          .order('created_at', { ascending: false })
+          .limit(10);
+      notifications = (broadcastRows ?? []) as NotificationItem[];
+    }
+
+    if (currentUser?.role === 'volunteer' || currentUser?.role === 'admin') {
+      const { data: allStudentRows } = await adminDb
+          .from('students')
+          .select('*')
+          .order('student_id', { ascending: true });
+      allStudentsForStaff = (allStudentRows ?? []) as StudentLedger[];
+    }
+
+    if (currentUser?.role === 'admin') {
+      const { data: allSubRows } = await adminDb
+          .from('submissions')
+          .select('*')
+          .order('created_at', { ascending: false });
+      allSubmissionsForAdmin = (allSubRows ?? []) as Submission[];
+    }
+  } else {
+    const { data: publicBroadcasts } = await adminDb
+        .from('notifications')
+        .select('*')
+        .is('student_id', null)
+        .order('created_at', { ascending: false })
+        .limit(10);
+    notifications = (publicBroadcasts ?? []) as NotificationItem[];
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      <div className="min-h-screen flex flex-col bg-slate-50">
+        <AuthHeader currentUser={currentUser} notifications={notifications} />
+
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <AuthenticatedWorkspace
+              currentUser={currentUser}
+              studentLedger={studentLedger}
+              studentSubmissions={studentSubmissions}
+              settings={settings}
+              materials={materials}
+              campusStats={campusStats}
+              leaderboard={leaderboard}
+              allStudentsForStaff={allStudentsForStaff}
+              allSubmissionsForAdmin={allSubmissionsForAdmin}
+          />
+        </main>
+      </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+      <Suspense
+          fallback={
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center text-xs font-mono text-slate-500">
+              Loading SP Corner...
+            </div>
+          }
+      >
+        <DashboardContent />
+      </Suspense>
   );
 }
