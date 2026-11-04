@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useEffect, useState, useTransition } from 'react';
+import Image from 'next/image';
 import {
-    Recycle,
     ShieldCheck,
     LogOut,
     Mail,
@@ -60,7 +60,6 @@ export default function AuthHeader({
     useEffect(() => {
         if (typeof window === 'undefined') return;
 
-        // Check URL for OAuth domain restriction errors
         const params = new URLSearchParams(window.location.search);
         const authError = params.get('authError');
         if (authError === 'restricted_domain') {
@@ -199,7 +198,6 @@ export default function AuthHeader({
     const handleInstantSignIn = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setStatusMessage(null);
-
         const formData = new FormData(e.currentTarget);
 
         startTransition(async () => {
@@ -236,10 +234,17 @@ export default function AuthHeader({
         <>
             <header className="border-b border-slate-200 bg-white/95 backdrop-blur sticky top-0 z-40 shadow-2xs">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
+
+                    {/* LOGO AND TITLE SECTION */}
                     <div className="flex items-center gap-2.5 sm:gap-3">
-                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 shrink-0">
-                            <Recycle className="w-5 h-5 sm:w-6 sm:h-6" />
-                        </div>
+                        <Image
+                            src="/logo-nav.png"
+                            alt="SP Corner Logo"
+                            width={40}
+                            height={40}
+                            className="w-9 h-9 sm:w-10 sm:h-10 object-contain shrink-0 drop-shadow-sm"
+                            priority
+                        />
                         <div>
                             <div className="flex items-center gap-2">
                 <span className="font-bold text-slate-900 tracking-tight text-base sm:text-lg">
@@ -264,7 +269,7 @@ export default function AuthHeader({
                                 title="Install SP Corner App"
                             >
                                 <Smartphone className="w-4 h-4 text-emerald-700" />
-                                <span>Install</span>
+                                <span className="hidden sm:inline">Install</span>
                             </button>
                         )}
 

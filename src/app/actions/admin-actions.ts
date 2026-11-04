@@ -33,7 +33,7 @@ async function verifyAdminCaller() {
 }
 
 /**
- * Allows the Project Lead to switch currency mode (POINTS vs RM) and update material buy-back rates.
+ * Allows the Project Lead to switch currency mode and update material buy-back rates.
  */
 export async function updateSystemAndRatesAction(formData: FormData): Promise<ActionResponse> {
     const auth = await verifyAdminCaller();
@@ -44,12 +44,12 @@ export async function updateSystemAndRatesAction(formData: FormData): Promise<Ac
     const { adminDb } = auth;
     const currencyMode = (formData.get('currency_mode') as CurrencyMode) || 'POINTS';
     const currencyLabel = currencyMode === 'RM' ? 'RM' : 'Pts';
-    const minQualifyingKg = Number(formData.get('min_qualifying_kg') ?? 0.5);
+    const minQualifyingKg = Number(formData.get('min_qualifying_kg') ?? 0.10);
 
-    if (Number.isNaN(minQualifyingKg) || minQualifyingKg < 0.1 || minQualifyingKg > 10) {
+    if (Number.isNaN(minQualifyingKg) || minQualifyingKg < 0.05 || minQualifyingKg > 10) {
         return {
             success: false,
-            message: 'Minimum qualifying threshold must be between 0.10 kg and 10.00 kg.',
+            message: 'Minimum qualifying threshold must be between 0.05 kg and 10.00 kg.',
         };
     }
 
@@ -109,9 +109,7 @@ export async function updateUserRoleAction(formData: FormData): Promise<ActionRe
     }
 
     const { adminDb } = auth;
-    const targetEmail = String(formData.get('email') ?? '')
-        .trim()
-        .toLowerCase();
+    const targetEmail = String(formData.get('email') ?? '').trim().toLowerCase();
     const newRole = String(formData.get('role') ?? 'student') as UserRole;
 
     if (!['student', 'volunteer', 'admin'].includes(newRole)) {
@@ -126,22 +124,15 @@ export async function updateUserRoleAction(formData: FormData): Promise<ActionRe
         .maybeSingle();
 
     if (error || !targetUser) {
-        return {
-            success: false,
-            message: `User with email ${targetEmail} not found. Ask them to sign in once first.`,
-        };
+        return { success: false, message: `User with email ${targetEmail} not found. Ask them to sign in once first.` };
     }
 
     revalidatePath('/');
-    return {
-        success: true,
-        message: `Updated role for ${targetUser.email} to ${targetUser.role.toUpperCase()}.`,
-    };
+    return { success: true, message: `Updated role for ${targetUser.email} to ${targetUser.role.toUpperCase()}.` };
 }
 
 /**
- * Allows the Project Lead (Fatimah) to broadcast a Campus Collection Session Notification
- * to all students (or to a specific Student ID).
+ * Broadcasts a Campus Collection Session Notification.
  */
 export async function broadcastNotificationAction(formData: FormData): Promise<ActionResponse> {
     const auth = await verifyAdminCaller();
@@ -152,9 +143,7 @@ export async function broadcastNotificationAction(formData: FormData): Promise<A
     const { adminDb } = auth;
     const title = String(formData.get('title') ?? '').trim();
     const message = String(formData.get('message') ?? '').trim();
-    const rawTargetStudentId = String(formData.get('target_student_id') ?? '')
-        .trim()
-        .toUpperCase();
+    const rawTargetStudentId = String(formData.get('target_student_id') ?? '').trim().toUpperCase();
 
     if (!title || !message) {
         return { success: false, message: 'Notification title and message are required.' };
@@ -183,7 +172,7 @@ export async function broadcastNotificationAction(formData: FormData): Promise<A
 }
 
 /**
- * Marks personal notifications as read for the currently authenticated student.
+ * Marks personal notifications as read.
  */
 export async function markNotificationsReadAction(): Promise<void> {
     const supabase = await createSupabaseServerClient();

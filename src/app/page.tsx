@@ -18,7 +18,6 @@ import type {
 } from '@/types/database';
 
 async function DashboardContent() {
-  // Explicitly mark route as request-time dynamic for Next.js 16 Cache Components
   await connection();
 
   const supabase = await createSupabaseServerClient();
@@ -49,9 +48,14 @@ async function DashboardContent() {
     currency_mode: 'POINTS',
     currency_label: 'Pts',
     points_per_rm: 100,
-    min_qualifying_kg: 0.5,
-    tier1_target_submissions: 10,
-    tier1_multiplier: 1.5,
+    min_qualifying_kg: 0.10,
+    level_1_target_drops: 3,
+    level_1_min_kg: 0.60,
+    level_2_target_drops: 6,
+    level_2_min_kg: 2.00,
+    level_2_multiplier: 1.5,
+    level_3_target_drops: 12,
+    level_3_min_kg: 4.50,
     updated_at: '',
   };
 

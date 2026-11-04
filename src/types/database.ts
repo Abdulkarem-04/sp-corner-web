@@ -1,6 +1,7 @@
 export type CurrencyMode = 'RM' | 'POINTS';
 export type UserRole = 'student' | 'volunteer' | 'admin';
 export type PayoutActionType = 'cash_claim' | 'merch_claim' | 'admin_override';
+export type NotificationCategory = 'submission' | 'milestone' | 'payout' | 'broadcast';
 
 export interface SystemSettings {
     id: number;
@@ -8,8 +9,13 @@ export interface SystemSettings {
     currency_label: string;
     points_per_rm: number;
     min_qualifying_kg: number;
-    tier1_target_submissions: number;
-    tier1_multiplier: number;
+    level_1_target_drops: number;
+    level_1_min_kg: number;
+    level_2_target_drops: number;
+    level_2_min_kg: number;
+    level_2_multiplier: number;
+    level_3_target_drops: number;
+    level_3_min_kg: number;
     updated_at: string;
 }
 
@@ -26,12 +32,19 @@ export interface StudentLedger {
     student_id: string;
     display_name: string | null;
     hall_of_fame_opt_in: boolean;
-    pending_weight_kg: number;
     verified_submissions_count: number;
     last_qualifying_session_date: string | null;
-    tier1_unlocked_at: string | null;
+
+    level_1_unlocked_at: string | null;
+    level_1_reward_claimed: boolean;
+
+    level_2_unlocked_at: string | null;
+    level_2_reward_claimed: boolean;
     multiplier_expires_at: string | null;
-    tier1_merch_claimed: boolean;
+
+    level_3_unlocked_at: string | null;
+    level_3_reward_claimed: boolean;
+
     total_weight_kg: number;
     total_co2_saved_kg: number;
     reward_balance: number;
@@ -77,7 +90,9 @@ export interface PublicLeaderboardEntry {
     total_weight_kg: number;
     total_co2_saved_kg: number;
     verified_submissions_count: number;
-    is_tier1_pioneer: boolean;
+    is_level_1_pioneer: boolean;
+    is_level_2_leader: boolean;
+    is_level_3_certified: boolean;
     hall_of_fame_opt_in: boolean;
 }
 
@@ -87,8 +102,6 @@ export interface PublicCampusStats {
     active_participants: number;
     tier1_achievers: number;
 }
-
-export type NotificationCategory = 'submission' | 'milestone' | 'payout' | 'broadcast';
 
 export interface NotificationItem {
     id: string;
